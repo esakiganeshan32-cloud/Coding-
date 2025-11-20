@@ -1,0 +1,53 @@
+#include <Arduino.h>
+
+// ---- Pin Setup ----
+#define VOLTAGE_PIN 32
+#define CURRENT_PIN 35   // ACS712 analog pin
+#define TILT_PIN 34
+
+// LoRa / HC-12 (SI4463)
+#define LORA_TX 17
+#define LORA_RX 16
+HardwareSerial LORA(2);
+
+// ---- ACS712 Calibration ----
+// zero current offset (tune if needed)
+// ESP32 usually reads ~1800–2100 for 0A depending on module
+int ACS_OFFSET = 2048;   
+
+void setup() {
+  Serial.begin(115200);
+  LORA.begin(9600, SERIAL_8N1, LORA_RX, LORA_TX);
+  Serial.println("TX Node Ready...");
+}
+
+void loop() {
+
+  // ---- Voltage Reading ----
+  int voltageVal = analogRead(VOLTAGE_PIN);
+
+  // ---- Current Reading ACS712 ----
+  int rawCurrent = analogRead(CURRENT_PIN);
+  int currentStatus = (rawCurrent <= ACS_OFFSET + 50);  
+  // if current ≈ zero → currentStatus = 1
+
+  // ---- Tilt Reading ----
+  int tiltRaw = analogRead(TILT_PIN);
+  int tiltVal = (tiltRaw > 4000);
+
+  // ---- Send formatted data (Voltage, Tilt, Current) ----
+  // Example format:  2300,0,1
+  String data = String(voltageVal) + "," + String(tiltVal) + "," + String(currentStatus);
+  LORA.println(data);
+
+  Serial.print("Voltage=");
+  Serial.print(voltageVal);
+  Serial.print(" | TiltRaw=");
+  Serial.print(tiltRaw);
+  Serial.print(" | CurrentRaw=");
+  Serial.print(rawCurrent);
+  Serial.print(" | TX Sent → ");
+  Serial.println(data);
+
+  delay(2000);
+}
